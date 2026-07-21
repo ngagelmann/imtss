@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+title: "iMTSS: an integrated two-axis prognostic framework for myelofibrosis undergoing allogeneic transplantation"
+message: "If you use this software or model, please cite the accompanying article."
+type: software
+authors:
+  - family-names: "AUTHOR_FAMILY_NAME"
+    given-names: "AUTHOR_GIVEN_NAME"
+repository-code: "https://github.com/USERNAME/imtss"
+url: "https://USERNAME.github.io/imtss/"
+version: "1.0"
+license: MIT
+keywords:
+  - myelofibrosis
+  - allogeneic transplantation
+  - prognosis
+  - competing risks
+preferred-citation:
+  type: article
+  title: "iMTSS: an integrated two-axis framework for prognosis in myelofibrosis undergoing allogeneic transplantation"
+  authors:
+    - family-names: "AUTHOR_FAMILY_NAME"
+      given-names: "AUTHOR_GIVEN_NAME"
+  journal: "JOURNAL"
+  year: YEAR
+  doi: "DOI"

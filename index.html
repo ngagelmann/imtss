@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="iMTSS: an integrated two-axis prognostic calculator for allogeneic transplantation in myelofibrosis, separating disease-intrinsic relapse risk from host-related non-relapse mortality.">
+<meta name="robots" content="index,follow">
+<meta property="og:type" content="website">
+<meta property="og:title" content="iMTSS calculator">
+<meta property="og:description" content="Two-axis prognostic calculator for allogeneic transplantation in myelofibrosis.">
+<meta name="twitter:card" content="summary">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232b3a46'/><rect x='6' y='16' width='9' height='10' fill='%233f8f52'/><rect x='17' y='16' width='9' height='10' fill='%23E07B22'/><rect x='6' y='6' width='9' height='9' fill='%2334617d'/><rect x='17' y='6' width='9' height='9' fill='%23C4161C'/></svg>">
+<title>iMTSS calculator</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --mut:#586169; --line:#dfe3e6; --bg:#ffffff; --panel:#f7f8f9;
+    --dis:#9c4722; --host:#34617d; --os:#2b3a46; --teal:#1c7a70;
+    --green:#2E7D32; --amber:#E1902B; --red:#B30000;
+    --q0:#3f8f52; --q1:#E07B22; --q2:#34617d; --q3:#C4161C;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:Arial,"Liberation Sans",Helvetica,sans-serif;line-height:1.55}
+  .wrap{max-width:760px;margin:0 auto;padding:28px 20px 64px}
+  header{border-bottom:1px solid var(--line);padding-bottom:14px;margin-bottom:26px}
+  .logo{font-size:26px;font-weight:bold;letter-spacing:.5px}
+  .sub{color:var(--mut);font-size:14px;margin-top:4px}
+  .prog{height:4px;background:var(--line);border-radius:2px;margin:18px 0 26px;overflow:hidden}
+  .prog span{display:block;height:100%;background:var(--teal);width:0;transition:width .25s}
+  .step{display:none}
+  .step.on{display:block}
+  .q{font-size:20px;font-weight:bold;margin:0 0 6px}
+  .hint{color:var(--mut);font-size:14px;margin:0 0 18px}
+  .axis{display:inline-block;font-size:12px;font-weight:bold;letter-spacing:.6px;
+        text-transform:uppercase;padding:3px 9px;border-radius:3px;margin-bottom:12px;color:#fff}
+  .axis.d{background:var(--dis)} .axis.h{background:var(--host)}
+  .opts{display:flex;flex-wrap:wrap;gap:10px}
+  button.opt{font:inherit;font-size:15px;padding:11px 18px;border:1.5px solid var(--line);
+             background:#fff;border-radius:6px;cursor:pointer}
+  button.opt:hover{border-color:var(--mut)}
+  button.opt.sel{border-color:var(--os);background:var(--panel);font-weight:bold}
+  input[type=number]{font:inherit;font-size:16px;padding:10px 12px;border:1.5px solid var(--line);
+                     border-radius:6px;width:170px}
+  .nav{margin-top:26px;display:flex;gap:12px;align-items:center}
+  button.nav-btn{font:inherit;font-size:15px;padding:10px 22px;border-radius:6px;cursor:pointer;border:1.5px solid var(--os)}
+  button.primary{background:var(--os);color:#fff}
+  button.ghost{background:#fff;color:var(--os)}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px}
+  .card{border:1px solid var(--line);border-radius:8px;padding:18px}
+  .card h3{margin:0 0 10px;font-size:14px;letter-spacing:.4px;text-transform:uppercase;color:var(--mut)}
+  .big{font-size:40px;font-weight:bold;line-height:1.1}
+  .band{display:inline-block;font-size:13px;font-weight:bold;color:#fff;padding:3px 10px;border-radius:3px;margin-top:8px}
+  .warn{background:#fdf3e3;border:1px solid #e4c68a;border-radius:6px;padding:12px 14px;margin:18px 0;font-size:14px}
+  table.sum{width:100%;border-collapse:collapse;margin-top:22px;font-size:14px}
+  table.sum td{padding:6px 4px;border-bottom:1px solid var(--line)}
+  table.sum td:last-child{text-align:right;font-weight:bold}
+  .mapwrap{margin-top:26px}
+  .disc{margin-top:34px;padding-top:16px;border-top:1px solid var(--line);
+        color:var(--mut);font-size:13px;text-align:center}
+  @media (max-width:560px){ .cards{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">iMTSS</div>
+    <div class="sub">Integrated two-axis prognostic framework for allogeneic transplantation in myelofibrosis</div>
+  </header>
+
+  <div class="prog"><span id="bar"></span></div>
+  <div id="steps"></div>
+
+  <div id="result" style="display:none">
+    <div class="q">Estimated outcome</div>
+    <p class="hint">Predictions for an individual with the entered characteristics. The continuous estimate is the instrument; the bands are shown for orientation only.</p>
+    <div id="extrap"></div>
+
+    <div class="card" style="margin-bottom:16px">
+      <h3>Overall survival at 5 years</h3>
+      <div class="big" id="osv"></div>
+      <div id="osb"></div>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <h3>Relapse at 2 years</h3>
+        <div class="big" id="relv" style="color:var(--dis)"></div>
+        <div id="relb"></div>
+      </div>
+      <div class="card">
+        <h3>Non-relapse mortality at 2 years</h3>
+        <div class="big" id="nrmv" style="color:var(--host)"></div>
+        <div id="nrmb"></div>
+      </div>
+    </div>
+
+    <div class="mapwrap">
+      <div class="q" style="font-size:17px">Two-axis map</div>
+      <p class="hint">The map indicates which axis, if either, dominates this patient's risk. It does not indicate the magnitude of risk, which is given by the survival estimate above.</p>
+      <svg id="map" viewBox="0 0 420 320" width="100%" style="max-width:420px"></svg>
+      <div id="quad" style="margin-top:10px;font-size:15px"></div>
+    </div>
+
+    <table class="sum" id="sum"></table>
+
+    <div class="nav">
+      <button class="nav-btn ghost" onclick="restart()">Start over</button>
+    </div>
+  </div>
+
+  <div class="disc">
+    This tool is not a medical device. It provides informational estimates derived from a
+    retrospective multicenter cohort and does not replace clinical judgement or the
+    assessment of the treating team.
+    <p style="margin-top:14px">
+      <span id="cite">Gagelmann N, et al. iMTSS: an integrated two-axis framework for prognosis in myelofibrosis undergoing allogeneic transplantation. [journal, year].</span><br>
+      Model version 1.0 &middot; coefficients frozen at publication &middot;
+      <a href="https://github.com/USERNAME/imtss" style="color:inherit">source and methods</a>
+    </p>
+  </div>
+</div>
+
+<script>
+const CFG = {"version": "1.0", "note": "iMTSS. OS: 5-year Cox. Relapse and NRM: 2-year Fine-Gray. All models fit on the development cohort (n=930); standardisation and centring from the development cohort only.", "std": {"mu": {"hb": 9.544190180365865, "plat": 199.30028616119438, "bloodblast": 2.103055760894873, "TP53ord": 0.13440860215053763, "agetx": 57.36357563050669}, "sd": {"hb": 1.9097441534275217, "plat": 189.30646223896878, "bloodblast": 3.4190545707501134, "TP53ord": 0.4595581309326736, "agetx": 9.682559267070681}}, "os": {"feats": ["hb_z", "plat_z", "bloodblast_z", "TP53ord_z", "RAS", "CALR_MPL", "TripleNeg", "agetx_z", "karno", "PVT", "MUD", "Haplo", "MMUD"], "beta": [-0.09943522550143129, -0.303809592271883, 0.0018816740811745181, 0.19385329302382193, 0.39353230713596893, -0.06690986130080995, 0.1695181201725074, 0.10018486355980764, 0.12421943611961157, 0.7568547456985582, 0.2883452741301428, 0.8370018418194809, 0.7627735690430464], "center": 0.4972671636036796, "S0": 0.6236836219271427, "horizon_years": 5, "band_anchors_pred": [0.65, 0.45], "band_cuts_LP": [-0.09161207451478641, 0.5255282431805377], "lp_lo": -1.3402717481534556, "lp_hi": 1.5669468564449247}, "relapse": {"feats": ["hb_z", "plat_z", "bloodblast_z", "TP53ord_z", "RAS", "CALR_MPL", "TripleNeg", "ASXL1"], "beta": [-0.11922616292236939, -0.04393430088557498, 0.18344252278042397, 0.28456968134316635, 0.48196620274897156, -0.6172202968254752, -0.5041153891457628, 0.2813166371939484], "center": -0.011719002461461792, "H0": 0.11614558963226745, "horizon_years": 2, "band_anchors_pred": [0.08, 0.16], "band_cuts_LP": [-0.3314167184557653, 0.406239713019571], "lp_lo": -1.0045102552710221, "lp_hi": 1.7061425437801088}, "nrm": {"feats": ["plat_z", "karno", "PVT", "MUD", "Haplo", "MMUD", "agetx_z"], "beta": [-0.3277574095097124, 0.32882448836474465, 0.9089385915249888, 0.2898651913385095, 0.6721450270927856, 0.8192199047687148, 0.08077458264667732], "center": 0.47566439593135257, "H0": 0.2589604544581288, "horizon_years": 2, "band_anchors_pred": [0.2, 0.32], "band_cuts_LP": [-0.14886007232945025, 0.39828722035880804], "lp_lo": -1.348131053304503, "lp_hi": 1.4024000208867204}, "quadrants": {"relapse_high_pred": 0.16, "nrm_high_pred": 0.32, "labels": ["No dominant axis", "Disease-driven", "Toxicity-driven", "High risk, both axes"], "shares_pct": [66, 13, 15, 5]}};
+
+const QCOL = ["var(--q0)","var(--q1)","var(--q2)","var(--q3)"];
+
+const STEPS = [
+  {k:"agetx", axis:"h", q:"Age at transplantation", hint:"Years.", type:"num", min:18, max:85, step:1, def:58},
+  {k:"karno", axis:"h", q:"Karnofsky performance status", type:"opt",
+   opts:[["90 or above",0],["Below 90",1]]},
+  {k:"PVT", axis:"h", q:"Portal vein thrombosis", type:"opt",
+   opts:[["No",0],["Yes",1]]},
+  {k:"donor", axis:"h", q:"Donor type", type:"opt",
+   opts:[["Matched related","MRD"],["Matched unrelated","MUD"],["Mismatched unrelated","MMUD"],["Haploidentical","HAPLO"]]},
+  {k:"drive", axis:"d", q:"Driver genotype", type:"opt",
+   opts:[["JAK2","JAK2"],["CALR","CALR"],["MPL","MPL"],["Triple-negative","TN"]]},
+  {k:"tp53", axis:"d", q:"TP53 status", type:"opt",
+   opts:[["Wild-type",0],["Single-hit",1],["Multi-hit",2]]},
+  {k:"ras", axis:"d", q:"RAS-pathway mutation", hint:"NRAS, KRAS, PTPN11, FLT3 or CBL.", type:"opt",
+   opts:[["No",0],["Yes",1]]},
+  {k:"asxl1", axis:"d", q:"ASXL1 mutation", type:"opt", opts:[["No",0],["Yes",1]]},
+  {k:"hb", axis:"d", q:"Hemoglobin", hint:"g/dL.", type:"num", min:4, max:18, step:0.1, def:9.3},
+  {k:"plat", axis:"d", q:"Platelet count", hint:"x10^9/L.", type:"num", min:1, max:1200, step:1, def:142},
+  {k:"blast", axis:"d", q:"Peripheral blasts", hint:"Percent.", type:"num", min:0, max:30, step:0.5, def:1}
+];
+
+let idx = 0;
+const S = {};
+STEPS.forEach(function(s){ if (s.type === "num") S[s.k] = s.def; });
+
+function build(){
+  var host = document.getElementById("steps");
+  host.innerHTML = "";
+  STEPS.forEach(function(s,i){
+    var d = document.createElement("div");
+    d.className = "step" + (i === 0 ? " on" : "");
+    d.id = "st" + i;
+    var inner = '<span class="axis ' + s.axis + '">' + (s.axis === "d" ? "disease axis" : "host axis") + '</span>';
+    inner += '<p class="q">' + s.q + '</p>';
+    if (s.hint) inner += '<p class="hint">' + s.hint + '</p>';
+    if (s.type === "opt"){
+      inner += '<div class="opts">';
+      s.opts.forEach(function(o){
+        inner += '<button class="opt" data-k="' + s.k + '" data-v="' + o[1] + '" onclick="pick(this)">' + o[0] + '</button>';
+      });
+      inner += '</div>';
+    } else {
+      inner += '<input type="number" id="in' + i + '" value="' + s.def + '" min="' + s.min + '" max="' + s.max + '" step="' + s.step + '" oninput="setNum(\'' + s.k + '\',this.value)">';
+    }
+    inner += '<div class="nav">';
+    if (i > 0) inner += '<button class="nav-btn ghost" onclick="go(' + (i-1) + ')">Back</button>';
+    inner += '<button class="nav-btn primary" onclick="next(' + i + ')">' + (i === STEPS.length-1 ? "Calculate" : "Next") + '</button>';
+    inner += '</div>';
+    d.innerHTML = inner;
+    host.appendChild(d);
+  });
+  bar();
+}
+function bar(){ document.getElementById("bar").style.width = (idx/STEPS.length*100) + "%"; }
+function go(i){
+  document.getElementById("st"+idx).classList.remove("on");
+  idx = i; document.getElementById("st"+idx).classList.add("on"); bar();
+}
+function pick(el){
+  var k = el.dataset.k, v = el.dataset.v;
+  if (v !== "" && !isNaN(v)) v = Number(v);
+  S[k] = v;
+  var sib = el.parentNode.children;
+  for (var j = 0; j < sib.length; j++) sib[j].classList.remove("sel");
+  el.classList.add("sel");
+}
+function setNum(k,v){ S[k] = Number(v); }
+function next(i){
+  var s = STEPS[i];
+  if (s.type === "opt" && S[s.k] === undefined){ alert("Please choose an option."); return; }
+  if (i === STEPS.length-1){ show(); return; }
+  go(i+1);
+}
+
+function vec(){
+  var mu = CFG.std.mu, sd = CFG.std.sd;
+  function z(k,v){ return (v - mu[k]) / sd[k]; }
+  return {
+    hb_z: z("hb", S.hb), plat_z: z("plat", S.plat), bloodblast_z: z("bloodblast", S.blast),
+    TP53ord_z: z("TP53ord", S.tp53), agetx_z: z("agetx", S.agetx),
+    RAS: S.ras, ASXL1: S.asxl1,
+    CALR_MPL: (S.drive === "CALR" || S.drive === "MPL") ? 1 : 0,
+    TripleNeg: (S.drive === "TN") ? 1 : 0,
+    karno: S.karno, PVT: S.PVT,
+    MUD: S.donor === "MUD" ? 1 : 0, Haplo: S.donor === "HAPLO" ? 1 : 0, MMUD: S.donor === "MMUD" ? 1 : 0
+  };
+}
+function lp(m, d){
+  var s = 0;
+  for (var i = 0; i < m.feats.length; i++) s += d[m.feats[i]] * m.beta[i];
+  return s - m.center;
+}
+// Bands follow the manuscript: thresholds of predicted outcome, expressed on the linear predictor.
+function band(m, v){
+  if (v < m.band_cuts_LP[0]) return 0;
+  if (v <= m.band_cuts_LP[1]) return 1;
+  return 2;
+}
+var BANDCOL = ["var(--green)","var(--amber)","var(--red)"];
+var BANDTXT = ["Low","Intermediate","High"];
+
+function show(){
+  var d = vec();
+  var lo = lp(CFG.os,d), lr = lp(CFG.relapse,d), ln = lp(CFG.nrm,d);
+  var os  = Math.pow(CFG.os.S0, Math.exp(lo)) * 100;
+  var rel = (1 - Math.exp(-CFG.relapse.H0 * Math.exp(lr))) * 100;
+  var nrm = (1 - Math.exp(-CFG.nrm.H0 * Math.exp(ln))) * 100;
+
+  document.getElementById("steps").style.display = "none";
+  document.getElementById("result").style.display = "block";
+  document.getElementById("bar").style.width = "100%";
+
+  document.getElementById("osv").textContent  = os.toFixed(0) + "%";
+  document.getElementById("relv").textContent = rel.toFixed(0) + "%";
+  document.getElementById("nrmv").textContent = nrm.toFixed(0) + "%";
+  function put(id,m,v,suffix){
+    var b = band(m,v);
+    document.getElementById(id).innerHTML =
+      '<span class="band" style="background:' + BANDCOL[b] + '">' + BANDTXT[b] + (suffix || "") + '</span>';
+  }
+  put("osb",CFG.os,lo," risk"); put("relb",CFG.relapse,lr,""); put("nrmb",CFG.nrm,ln,"");
+
+  var out = [];
+  if (lo < CFG.os.lp_lo || lo > CFG.os.lp_hi) out.push("overall survival");
+  if (lr < CFG.relapse.lp_lo || lr > CFG.relapse.lp_hi) out.push("relapse");
+  if (ln < CFG.nrm.lp_lo || ln > CFG.nrm.lp_hi) out.push("non-relapse mortality");
+  document.getElementById("extrap").innerHTML = out.length
+    ? '<div class="warn">This combination of features lies outside the range observed in the development cohort for the ' +
+      out.join(" and ") + ' model. The estimate should be read as a direction of risk rather than as a probability.</div>' : "";
+
+  drawMap(rel,nrm);
+
+  var DON = {MRD:"Matched related",MUD:"Matched unrelated",MMUD:"Mismatched unrelated",HAPLO:"Haploidentical"};
+  var DRV = {JAK2:"JAK2",CALR:"CALR",MPL:"MPL",TN:"Triple-negative"};
+  var rows = [
+    ["Age at transplantation", S.agetx + " years"],
+    ["Karnofsky below 90", S.karno ? "Yes" : "No"],
+    ["Portal vein thrombosis", S.PVT ? "Yes" : "No"],
+    ["Donor type", DON[S.donor]],
+    ["Driver genotype", DRV[S.drive]],
+    ["TP53", ["Wild-type","Single-hit","Multi-hit"][S.tp53]],
+    ["RAS pathway", S.ras ? "Mutated" : "Wild-type"],
+    ["ASXL1", S.asxl1 ? "Mutated" : "Wild-type"],
+    ["Hemoglobin", S.hb + " g/dL"],
+    ["Platelets", S.plat + " x10^9/L"],
+    ["Peripheral blasts", S.blast + "%"]
+  ];
+  document.getElementById("sum").innerHTML =
+    rows.map(function(r){ return "<tr><td>" + r[0] + "</td><td>" + r[1] + "</td></tr>"; }).join("");
+}
+
+function drawMap(rel,nrm){
+  var xc = CFG.quadrants.relapse_high_pred*100, yc = CFG.quadrants.nrm_high_pred*100;
+  var XMAX = 55, YMAX = 70;
+  var W = 420, H = 320, L = 56, B = 46, T = 14, R = 14;
+  function px(v){ return L + (Math.min(v,XMAX)/XMAX) * (W-L-R); }
+  function py(v){ return (H-B) - (Math.min(v,YMAX)/YMAX) * (H-B-T); }
+  var qi = (rel > xc ? 1 : 0) + (nrm > yc ? 2 : 0);   // 0 neither, 1 disease, 2 toxicity, 3 both
+  var rects = [
+    [px(0),py(yc),px(xc)-px(0),py(0)-py(yc),0],
+    [px(xc),py(yc),px(XMAX)-px(xc),py(0)-py(yc),1],
+    [px(0),py(YMAX),px(xc)-px(0),py(yc)-py(YMAX),2],
+    [px(xc),py(YMAX),px(XMAX)-px(xc),py(yc)-py(YMAX),3]
+  ];
+  var s = '';
+  rects.forEach(function(r){
+    s += '<rect x="'+r[0]+'" y="'+r[1]+'" width="'+r[2]+'" height="'+r[3]+
+         '" fill="'+QCOL[r[4]]+'" opacity="'+(r[4]===qi?0.30:0.10)+'"/>';
+  });
+  s += '<line x1="'+px(xc)+'" y1="'+py(YMAX)+'" x2="'+px(xc)+'" y2="'+py(0)+'" stroke="#8a9196" stroke-width="1" stroke-dasharray="4 3"/>';
+  s += '<line x1="'+px(0)+'" y1="'+py(yc)+'" x2="'+px(XMAX)+'" y2="'+py(yc)+'" stroke="#8a9196" stroke-width="1" stroke-dasharray="4 3"/>';
+  s += '<line x1="'+px(0)+'" y1="'+py(0)+'" x2="'+px(XMAX)+'" y2="'+py(0)+'" stroke="#444" stroke-width="1"/>';
+  s += '<line x1="'+px(0)+'" y1="'+py(0)+'" x2="'+px(0)+'" y2="'+py(YMAX)+'" stroke="#444" stroke-width="1"/>';
+  [0,20,40].forEach(function(v){ s += '<text x="'+px(v)+'" y="'+(py(0)+15)+'" font-size="10" fill="#586169" text-anchor="middle">'+v+'</text>'; });
+  [0,20,40,60].forEach(function(v){ s += '<text x="'+(px(0)-6)+'" y="'+(py(v)+3)+'" font-size="10" fill="#586169" text-anchor="end">'+v+'</text>'; });
+  s += '<text x="'+((px(0)+px(XMAX))/2)+'" y="'+(H-8)+'" font-size="11" fill="#9c4722" text-anchor="middle">Predicted 2-year relapse (%)</text>';
+  s += '<text transform="translate(14,'+((py(0)+py(YMAX))/2)+') rotate(-90)" font-size="11" fill="#34617d" text-anchor="middle">Predicted 2-year NRM (%)</text>';
+  s += '<circle cx="'+px(rel)+'" cy="'+py(nrm)+'" r="7" fill="'+QCOL[qi]+'" stroke="#fff" stroke-width="2"/>';
+  document.getElementById("map").innerHTML = s;
+
+  var L4 = CFG.quadrants.labels;
+  var EXPL = [
+    "Neither axis dominates. The map indicates no specific lever; the magnitude of risk is given by the survival estimate above. Note that this region spans patients who are genuinely low risk on both axes and those who are merely below the high-risk threshold of each.",
+    "Risk is concentrated in the disease. Pre-transplant disease control, conditioning intensity, and post-transplant maintenance or measurable-residual-disease-directed strategies are the relevant levers.",
+    "Risk is concentrated in procedural tolerance. Donor optimization, management of portal vein thrombosis and comorbidity, and conditioning intensity or timing are the relevant levers.",
+    "Both axes are elevated. Non-transplant options and explicit shared decision-making are appropriate."
+  ];
+  document.getElementById("quad").innerHTML =
+    '<span class="band" style="background:'+QCOL[qi]+'">'+L4[qi]+'</span><br>'+EXPL[qi];
+}
+
+function restart(){
+  document.getElementById("result").style.display = "none";
+  document.getElementById("steps").style.display = "block";
+  Object.keys(S).forEach(function(k){ delete S[k]; });
+  STEPS.forEach(function(s){ if (s.type === "num") S[s.k] = s.def; });
+  var opts = document.querySelectorAll(".opt");
+  for (var i = 0; i < opts.length; i++) opts[i].classList.remove("sel");
+  idx = 0;
+  var st = document.querySelectorAll(".step");
+  for (var j = 0; j < st.length; j++) st[j].classList.toggle("on", j === 0);
+  bar();
+}
+build();
+</script>
+</body>
+</html>
