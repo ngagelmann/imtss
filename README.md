@@ -2,7 +2,7 @@
 
 Integrated two-axis prognostic framework for allogeneic haematopoietic cell transplantation in myelofibrosis.
 
-Live calculator: **https://USERNAME.github.io/imtss/**
+Live calculator: **https://ngagelmann.github.io/imtss/**
 
 ## What this is
 
