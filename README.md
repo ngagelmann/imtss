@@ -58,7 +58,7 @@ extrapolations and should be read as a direction of risk rather than as a probab
 1. Create a repository named `imtss`.
 2. Upload the contents of this folder to the repository root.
 3. Settings, then Pages, then set Source to `Deploy from a branch`, branch `main`, folder `/ (root)`.
-4. The site appears at `https://USERNAME.github.io/imtss/` within a few minutes.
+4. The site appears at `https://ngagelmann.github.io/imtss/` within a few minutes.
 
 `index.html` is fully self-contained: no build step, no dependencies, no external requests.
 Everything runs in the browser, so no entered patient data leaves the device.
